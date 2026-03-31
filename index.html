@@ -2,101 +2,133 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MON-INTEL STRATEGIC GRID v4.0</title>
+    <title>MON-INTEL | STRATEGIC RESOURCE GRID v4.MAX</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        #ui { position: absolute; top: 0; left: 0; padding: 40px; pointer-events: none; width: 100%; box-sizing: border-box; }
-        .glitch-title { color: #fff; font-size: 2.5rem; letter-spacing: 15px; text-transform: uppercase; margin: 0; font-weight: 900; border-left: 5px solid #00f2ff; padding-left: 20px; }
-        .data-readout { position: absolute; bottom: 40px; right: 40px; width: 350px; background: rgba(0,20,30,0.8); border: 1px solid #00f2ff; padding: 20px; color: #00f2ff; backdrop-filter: blur(10px); display: none; pointer-events: auto; }
-        .data-readout.active { display: block; }
-        .loading-bar { width: 200px; height: 2px; background: #111; margin-top: 10px; overflow: hidden; }
-        .loading-progress { width: 40%; height: 100%; background: #00f2ff; animation: load 2s infinite; }
-        @keyframes load { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }
+        :root { --neon: #00f2ff; --warn: #ff3333; --bg: #000405; --panel: rgba(0, 15, 20, 0.9); }
+        body { margin: 0; background: var(--bg); color: var(--neon); font-family: 'Consolas', monospace; overflow: hidden; }
+        
+        /* HUD LAYER */
+        #hud { position: absolute; inset: 0; pointer-events: none; z-index: 100; border: 1px solid rgba(0, 242, 255, 0.1); }
+        #header { position: absolute; top: 40px; left: 40px; }
+        #header h1 { margin: 0; font-size: 2.2rem; letter-spacing: 12px; font-weight: 900; filter: drop-shadow(0 0 15px var(--neon)); }
+        
+        /* GOVERNANCE RADAR (Real Data from RGI 2021) */
+        #gov-dash { position: absolute; bottom: 40px; left: 40px; width: 300px; background: var(--panel); border: 1px solid var(--neon); padding: 15px; pointer-events: auto; }
+        .gov-item { margin: 10px 0; font-size: 0.7rem; }
+        .bar-bg { width: 100%; height: 6px; background: #111; margin-top: 4px; border: 1px solid rgba(0,242,255,0.2); }
+        .bar-fill { height: 100%; background: var(--neon); box-shadow: 0 0 10px var(--neon); }
+
+        /* RESOURCE INTEL */
+        #intel { position: absolute; top: 120px; right: -400px; width: 340px; background: var(--panel); border: 1px solid var(--neon); padding: 25px; transition: 0.5s; pointer-events: auto; backdrop-filter: blur(15px); }
+        #intel.active { right: 40px; }
+        .data-val { color: #fff; font-size: 1.1rem; margin-bottom: 15px; border-bottom: 1px solid rgba(0,242,255,0.2); }
+
+        #scan { position: absolute; top: 0; height: 100%; width: 100%; background: repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0,242,255,0.03) 1px, rgba(0,242,255,0.03) 2px); pointer-events: none; }
     </style>
 </head>
 <body>
-    <div id="ui">
-        <h1 class="glitch-title">MON-INTEL <span style="color: #00f2ff">MAX</span></h1>
-        <div class="loading-bar"><div class="loading-progress"></div></div>
-    </div>
-    <div id="data-readout" class="data-readout">
-        <h2 id="r-name">---</h2>
-        <p><strong>GEOLOGY:</strong> <span id="r-type">---</span></p>
-        <p><strong>RESERVE:</strong> <span id="r-res">---</span></p>
-        <p><strong>RGI SCORE:</strong> <span id="r-gov">---</span></p>
-        <button onclick="this.parentElement.classList.remove('active')" style="background:none; border:1px solid #00f2ff; color:#00f2ff; width:100%; padding:10px; cursor:pointer;">DISMISS</button>
+
+    <div id="hud">
+        <div id="scan"></div>
+        <div id="header">
+            <h1>MON-INTEL <span style="color:#fff">V4</span></h1>
+            <div style="font-size: 0.6rem; letter-spacing: 5px;">NATIONAL MINERAL INTELLIGENCE INTERFACE</div>
+        </div>
+
+        <div id="gov-dash">
+            <div style="font-weight: bold; border-bottom: 1px solid var(--neon); margin-bottom: 10px;">RGI GOVERNANCE (LAW/PRACTICE)</div>
+            <div class="gov-item">LICENSING <span style="float:right">50 | 68</span><div class="bar-bg"><div class="bar-fill" style="width: 68%"></div></div></div>
+            <div class="gov-item">SOEs <span style="float:right">64 | 36</span><div class="bar-bg"><div class="bar-fill" style="width: 36%; background:#ff3333;"></div></div></div>
+            <div class="gov-item">SWF (FUTURE HERITAGE) <span style="float:right">92 | 81</span><div class="bar-bg"><div class="bar-fill" style="width: 81%"></div></div></div>
+        </div>
+
+        <div id="intel">
+            <div style="text-align: right;"><button onclick="closeIntel()" style="background:none; border:1px solid #ff3333; color:#ff3333; cursor:pointer;">[EXIT]</button></div>
+            <div style="font-size: 0.6rem; color: rgba(0,242,255,0.5);">PROJECT ID</div>
+            <div class="data-val" id="d-name">--</div>
+            <div style="font-size: 0.6rem; color: rgba(0,242,255,0.5);">ORE BODY TYPE</div>
+            <div class="data-val" id="d-type">--</div>
+            <div style="font-size: 0.6rem; color: rgba(0,242,255,0.5);">RESOURCE ESTIMATE</div>
+            <div class="data-val" id="d-res">--</div>
+            <div style="font-size: 0.6rem; color: rgba(0,242,255,0.5);">SITE COORDINATES</div>
+            <div class="data-val" id="d-coord">--</div>
+        </div>
     </div>
 
     <script>
+        // --- REAL GEOSPATIAL DATASET ---
+        const sites = [
+            { name: "Oyu Tolgoi (Hugo North)", type: "Porphyry Cu-Au (12km Trend)", res: "42Mt Cu / 1.8kt Au", pos: [106.8, 43.0], color: 0x00f2ff, scale: [0.3, 1.2, 0.3], rot: [0.5, 0, 0] },
+            { name: "Tavan Tolgoi", type: "Coking Coal (Tsankhi)", res: "6.4B Tonnes", pos: [105.4, 43.6], color: 0x555555, scale: [0.8, 0.2, 0.8], rot: [0, 0, 0] },
+            { name: "Erdenet", type: "Cu-Mo Intrusive", res: "1.72Mt Cu", pos: [104.0, 49.0], color: 0x00ffaa, scale: [0.5, 0.5, 0.5], rot: [0, 0, 0] },
+            { name: "Dornod", type: "Uranium (In-Situ)", res: "28kt Uranium", pos: [114.5, 48.4], color: 0xccff00, scale: [0.2, 0.8, 0.2], rot: [0.8, 0, 0] },
+            { name: "Khotgor", type: "Rare Earths / Coal", res: "Strategic REE Reserve", pos: [91.6, 49.6], color: 0xff00ff, scale: [0.4, 0.4, 0.4], rot: [0, 0, 0] },
+            { name: "Tsagaan Suvarga", type: "Porphyry Cu-Mo", res: "1.6Mt Copper", pos: [108.3, 44.4], color: 0x00ccff, scale: [0.3, 0.6, 0.3], rot: [0.3, 0, 0] },
+            { name: "Baganuur", type: "Thermal Coal", res: "700Mt Reserve", pos: [108.3, 47.7], color: 0x333333, scale: [0.7, 0.1, 0.7], rot: [0, 0, 0] }
+        ];
+
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // --- THE "ENVIRONMENT" ---
-        // Dark reflective floor for a "Command Center" feel
-        const floorGeo = new THREE.PlaneGeometry(100, 100);
-        const floorMat = new THREE.MeshPhongMaterial({ color: 0x050505, shininess: 100 });
-        const floor = new THREE.Mesh(floorGeo, floorMat);
-        floor.rotation.x = -Math.PI/2;
-        floor.position.y = -2;
-        scene.add(floor);
-
-        // --- THE "MAP" (Wireframe Topography) ---
-        const mapGeo = new THREE.PlaneGeometry(20, 12, 100, 100);
-        const pos = mapGeo.attributes.position;
-        for(let i=0; i<pos.count; i++) {
-            let x = pos.getX(i);
-            let y = pos.getY(i);
-            // Procedural Mountains (Altai/Khangai)
-            let z = Math.sin(x * 0.3) * Math.cos(y * 0.3) * 0.8;
-            if (x < -3) z += Math.random() * 0.5; // Rough Altai
-            pos.setZ(i, z);
+        // --- THE "MONGOLIA" TOPOGRAPHICAL GRID ---
+        const mapGroup = new THREE.Group();
+        const mapGeo = new THREE.PlaneGeometry(24, 14, 100, 60);
+        const posAttr = mapGeo.attributes.position;
+        for (let i = 0; i < posAttr.count; i++) {
+            const x = posAttr.getX(i);
+            const y = posAttr.getY(i);
+            // Simulate Altai (West) and Khangai (North) mountains
+            let z = 0;
+            if (x < -2) z += (Math.abs(x)-2) * 0.4 + Math.random()*0.2; // Altai
+            if (y > 2) z += (y-2) * 0.2; // Khangai
+            posAttr.setZ(i, z);
         }
-        const mapMat = new THREE.MeshBasicMaterial({ color: 0x00f2ff, wireframe: true, transparent: true, opacity: 0.1 });
-        const map = new THREE.Mesh(mapGeo, mapMat);
-        map.rotation.x = -Math.PI/2.5;
-        scene.add(map);
+        mapGeo.computeVertexNormals();
 
-        // --- CORE ASSETS (Volumetric Ore) ---
-        const siteData = [
-            { name: "Oyu Tolgoi", type: "Porphyry Cu-Au", res: "42Mt Cu", gov: "61/100", pos: [-3, 0, 1], color: 0x00f2ff },
-            { name: "Erdenet", type: "Copper-Moly", res: "1.7Mt Cu", gov: "44/100", pos: [0, 2, 0.5], color: 0x00ff99 }
-        ];
+        const map = new THREE.Mesh(mapGeo, new THREE.MeshPhongMaterial({ 
+            color: 0x00151a, wireframe: true, transparent: true, opacity: 0.25, side: THREE.DoubleSide 
+        }));
+        mapGroup.add(map);
+        mapGroup.rotation.x = -Math.PI / 2.5;
+        scene.add(mapGroup);
 
+        // --- VOLUMETRIC ORE BODIES ---
         const interactables = [];
-        siteData.forEach(site => {
+        sites.forEach(s => {
             const group = new THREE.Group();
             
-            // The "Ore Body" - Pulsing crystalline structure
-            const oreGeo = new THREE.IcosahedronGeometry(0.3, 1);
-            const oreMat = new THREE.MeshPhongMaterial({ color: site.color, emissive: site.color, wireframe: true });
+            // The "Voxel" Body
+            const oreGeo = new THREE.BoxGeometry(1, 1, 1);
+            const oreMat = new THREE.MeshStandardMaterial({ 
+                color: s.color, emissive: s.color, emissiveIntensity: 0.5, wireframe: true, transparent: true, opacity: 0.4 
+            });
             const ore = new THREE.Mesh(oreGeo, oreMat);
+            ore.scale.set(s.scale[0], s.scale[1], s.scale[2]);
+            ore.rotation.set(s.rot[0], s.rot[1], s.rot[2]);
             group.add(ore);
 
-            // The "Uplink Beam"
-            const beamGeo = new THREE.CylinderGeometry(0.01, 0.01, 10);
-            const beamMat = new THREE.MeshBasicMaterial({ color: site.color, transparent: true, opacity: 0.2 });
-            const beam = new THREE.Mesh(beamGeo, beamMat);
-            group.add(beam);
+            // Position mapping
+            const mapX = (s.pos[0] - 103) * 0.8;
+            const mapY = (s.pos[1] - 46.5) * 1.0;
+            group.position.set(mapX, mapY, 0.5);
+            group.userData = s;
 
-            group.position.set(site.pos[0], site.pos[2], site.pos[1]);
-            group.userData = site;
-            scene.add(group);
+            mapGroup.add(group);
             interactables.push(ore);
         });
 
-        // --- LIGHTING & CAMERA ---
-        const ambient = new THREE.AmbientLight(0xffffff, 0.2);
-        scene.add(ambient);
-        const point = new THREE.PointLight(0x00f2ff, 1, 100);
-        point.position.set(5, 5, 5);
-        scene.add(point);
+        // LIGHTS
+        const pLight = new THREE.PointLight(0x00f2ff, 1.5, 100);
+        pLight.position.set(0, 5, 10);
+        scene.add(pLight);
+        scene.add(new THREE.AmbientLight(0x111111));
 
-        camera.position.set(0, 5, 12);
-        camera.lookAt(0,0,0);
+        camera.position.set(0, 10, 15);
+        camera.lookAt(0, 0, 0);
 
         // --- INTERACTION ---
         const raycaster = new THREE.Raycaster();
@@ -106,23 +138,25 @@
             mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(interactables);
-            if(intersects.length > 0) {
-                const data = intersects[0].object.parent.userData;
-                document.getElementById('r-name').innerText = data.name;
-                document.getElementById('r-type').innerText = data.type;
-                document.getElementById('r-res').innerText = data.res;
-                document.getElementById('r-gov').innerText = data.gov;
-                document.getElementById('data-readout').classList.add('active');
+            const hits = raycaster.intersectObjects(interactables);
+            if(hits.length > 0) {
+                const data = hits[0].object.parent.userData;
+                document.getElementById('d-name').innerText = data.name;
+                document.getElementById('d-type').innerText = data.type;
+                document.getElementById('d-res').innerText = data.res;
+                document.getElementById('d-coord').innerText = `${data.pos[0]}N, ${data.pos[1]}E`;
+                document.getElementById('intel').classList.add('active');
             }
         });
 
+        function closeIntel() { document.getElementById('intel').classList.remove('active'); }
+
         function animate() {
             requestAnimationFrame(animate);
-            map.rotation.z += 0.001;
+            mapGroup.rotation.z += 0.0005;
             interactables.forEach(m => {
                 m.rotation.y += 0.01;
-                m.scale.setScalar(1 + Math.sin(Date.now()*0.003)*0.1);
+                m.scale.multiplyScalar(1 + Math.sin(Date.now()*0.002)*0.001);
             });
             renderer.render(scene, camera);
         }
