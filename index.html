@@ -3,190 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MON-INTEL | GLOBAL STRATEGIC GRID</title>
+    <title>MON-INTEL | STRATEGIC MINERAL GRID v3.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        :root { --neon-blue: #00f2ff; --dark-bg: #00080a; --panel-bg: rgba(0, 15, 20, 0.9); }
-        body { margin: 0; background: var(--dark-bg); color: var(--neon-blue); font-family: 'Segoe UI', 'Courier New', monospace; overflow: hidden; }
-        
-        /* HI-TECH HUD */
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; border: 1px solid rgba(0, 242, 255, 0.1); box-sizing: border-box; }
-        
-        #header { position: absolute; top: 30px; left: 30px; pointer-events: auto; }
-        #header h1 { margin: 0; font-size: 1.8rem; letter-spacing: 8px; text-transform: uppercase; font-style: italic; filter: drop-shadow(0 0 10px var(--neon-blue)); }
-        #header .tagline { font-size: 0.65rem; color: rgba(0, 242, 255, 0.5); letter-spacing: 3px; margin-top: 5px; }
+        :root { --neon: #00f2ff; --bg: #000505; --panel: rgba(0, 10, 15, 0.95); }
+        body { margin: 0; background: var(--bg); color: var(--neon); font-family: 'Inter', sans-serif; overflow: hidden; }
+        canvas { display: block; }
 
-        /* DATA PANEL */
-        #detail-panel {
-            position: absolute; top: 100px; right: -400px; width: 320px; background: var(--panel-bg);
-            border: 1px solid var(--neon-blue); padding: 25px; transition: 0.6s cubic-bezier(0.19, 1, 0.22, 1);
-            pointer-events: auto; backdrop-filter: blur(15px); box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+        /* HUD OVERLAY */
+        #hud-container { position: absolute; inset: 0; pointer-events: none; border: 20px solid rgba(0, 242, 255, 0.03); z-index: 10; }
+        #header { position: absolute; top: 40px; left: 40px; pointer-events: auto; }
+        #header h1 { margin: 0; font-size: 2rem; letter-spacing: 12px; text-transform: uppercase; font-weight: 900; color: #fff; }
+        #header .sub { font-size: 0.7rem; letter-spacing: 4px; color: var(--neon); opacity: 0.6; margin-top: 5px; }
+
+        /* INTEL PANEL */
+        #intel-panel {
+            position: absolute; top: 120px; right: -450px; width: 350px; background: var(--panel);
+            border: 1px solid var(--neon); padding: 30px; transition: 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: auto; backdrop-filter: blur(20px); box-shadow: -20px 0 50px rgba(0,0,0,0.8);
         }
-        #detail-panel.active { right: 30px; }
-        .data-header { border-bottom: 2px solid var(--neon-blue); margin-bottom: 15px; padding-bottom: 5px; }
-        .data-label { color: rgba(0, 242, 255, 0.4); font-size: 0.7rem; text-transform: uppercase; }
-        .data-value { font-size: 0.95rem; margin-bottom: 12px; color: #fff; }
+        #intel-panel.active { right: 40px; }
+        .stat-box { margin-bottom: 20px; }
+        .label { font-size: 0.6rem; text-transform: uppercase; color: rgba(255,255,255,0.4); letter-spacing: 2px; }
+        .value { font-size: 1.1rem; color: #fff; margin-top: 4px; }
+        .score-pill { display: inline-block; padding: 4px 10px; border-radius: 2px; font-size: 0.8rem; font-weight: bold; margin-top: 10px; }
 
-        /* SCANNER OVERLAY */
-        #scan-line { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: rgba(0, 242, 255, 0.3); box-shadow: 0 0 15px var(--neon-blue); animation: scan 4s linear infinite; }
-        @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
-
-        .btn { border: 1px solid var(--neon-blue); padding: 8px 15px; background: transparent; color: var(--neon-blue); cursor: pointer; font-size: 0.7rem; transition: 0.3s; }
-        .btn:hover { background: var(--neon-blue); color: #000; }
+        #scan-line { position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: var(--neon); box-shadow: 0 0 20px var(--neon); opacity: 0.2; animation: scan 6s linear infinite; }
+        @keyframes scan { from { top: -5%; } to { top: 105%; } }
     </style>
 </head>
 <body>
 
-    <div id="ui-layer">
+    <div id="hud-container">
         <div id="scan-line"></div>
-        
         <div id="header">
-            <h1>MON-INTEL <span style="color: #fff;">v2.0</span></h1>
-            <div class="tagline">NATIONAL MINERAL REVENUE INTELLIGENCE GRID</div>
+            <h1>MON-INTEL</h1>
+            <div class="sub">GEOSPATIAL RESOURCE GOVERNANCE // V3.MAX</div>
         </div>
 
-        <div id="detail-panel">
-            <div style="text-align: right;"><span class="btn" onclick="closePanel()">CLOSE X</span></div>
-            <div class="data-header"><h2 id="p-name" style="margin:0;">DEPOSIT_ID</h2></div>
-            
-            <div class="data-label">Primary Mineral</div>
-            <div class="data-value" id="p-type">--</div>
-            
-            <div class="data-label">Reserve Calculation</div>
-            <div class="data-value" id="p-res">--</div>
-            
-            <div class="data-label">Licensing Authority / Miner</div>
-            <div class="data-value" id="p-op">--</div>
-
-            <div class="data-label">RGI Governance Score</div>
-            <div id="p-gov" style="font-weight: bold; font-size: 1.2rem;">--</div>
-            
-            <div style="margin-top:20px; font-size: 0.6rem; color: rgba(0,242,255,0.4);">
-                STATUS: ENCRYPTED_UPLINK_ACTIVE<br>
-                SOURCE: 2021_RGI_WORKBOOK_EN
+        <div id="intel-panel">
+            <div style="text-align: right; margin-bottom: 10px;"><button style="background:none; border:1px solid #ff3333; color:#ff3333; cursor:pointer; font-size:10px;" onclick="hidePanel()">[TERMINATE_VIEW]</button></div>
+            <div class="stat-box"><div class="label">Project Code</div><div class="value" id="d-name">--</div></div>
+            <div class="stat-box"><div class="label">Ore Body Geometry</div><div class="value" id="d-type">--</div></div>
+            <div class="stat-box"><div class="label">Verified Reserves</div><div class="value" id="d-res">--</div></div>
+            <div class="stat-box">
+                <div class="label">RGI Governance Score (2021)</div>
+                <div id="d-gov" class="score-pill">--</div>
+            </div>
+            <div style="font-size: 9px; color: rgba(0,242,255,0.3); border-top: 1px solid rgba(0,242,255,0.1); padding-top: 15px;">
+                SOURCE: NRGI_MONGOLIA_WORKBOOK<br>SATELLITE_LINK: ESTABLISHED
             </div>
         </div>
     </div>
 
     <script>
-        // --- DATASET FROM RGI WORKBOOK & GEOLOGICAL SOURCES ---
-        const mineralSites = [
-            { 
-                name: "Oyu Tolgoi (Hugo North)", 
-                type: "Porphyry Copper-Gold", 
-                res: "42Mt Cu / 1,850t Au", 
-                op: "Rio Tinto / OT LLC", 
-                gov: "61/100 (Satisfactory)",
-                pos: [-2.2, 0.3, 0.2], 
-                color: 0x00f2ff 
-            },
-            { 
-                name: "Tavan Tolgoi", 
-                type: "Metallurgical Coking Coal", 
-                res: "6.4 Billion Tonnes", 
-                op: "Erdenes Tavan Tolgoi SOE", 
-                gov: "44/100 (SOE Weakness)",
-                pos: [-1.4, -0.2, 0.1], 
-                color: 0x777777 
-            },
-            { 
-                name: "Erdenet", 
-                type: "Copper-Molybdenum", 
-                res: "1.72 Million Tonnes Cu", 
-                op: "Erdenet Mining Corp", 
-                gov: "44/100 (SOE Weakness)",
-                pos: [-0.6, 2.3, 0.1], 
-                color: 0x00ff99 
-            },
-            {
-                name: "Dornod Uranium",
-                type: "Uranium (In-situ)",
-                res: "28,000 Tonnes U",
-                op: "Badrakh Energy",
-                gov: "53/100 (Weak)",
-                pos: [2.5, 2.1, 0.1],
-                color: 0xccff00
-            }
+        // --- EXPANDED STRATEGIC DATA ---
+        const deposits = [
+            { name: "Oyu Tolgoi (Hugo North)", type: "Porphyry Cu-Au Trend", res: "42Mt Cu / 1.8kt Au", gov: "61/100 (Satisfactory)", pos: [106.8, 43.0, 0.4], color: 0x00f2ff, tilt: 0.5 },
+            { name: "Tavan Tolgoi", type: "Coking Coal Basin", res: "6.4B Tonnes", gov: "44/100 (Poor)", pos: [105.4, 43.6, 0.1], color: 0x555555, tilt: 0 },
+            { name: "Erdenet Mining", type: "Cu-Mo Intrusive", res: "1.7Mt Copper", gov: "44/100 (Poor)", pos: [104.0, 49.0, 0.2], color: 0x00ffaa, tilt: 0.2 },
+            { name: "Khotgor", type: "Rare Earth / Coal", res: "Strategic Reserve", gov: "N/A", pos: [91.6, 49.6, 0.1], color: 0xff00ff, tilt: 0.1 },
+            { name: "Dornod", type: "Uranium (ISL)", res: "28kt Uranium", gov: "53/100 (Weak)", pos: [114.5, 48.4, 0.3], color: 0xccff00, tilt: 0.6 }
         ];
 
-        // --- SCENE SETUP ---
+        // --- 3D ENGINE ---
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        // --- AMBIENCE ---
-        const starGeo = new THREE.BufferGeometry();
-        const starPos = [];
-        for(let i=0; i<8000; i++) {
-            starPos.push((Math.random()-0.5)*400, (Math.random()-0.5)*400, (Math.random()-0.5)*400);
-        }
-        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-        const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0x444444, size: 0.5 }));
+        // 1. STARFIELD & AMBIANCE
+        const stars = new THREE.Points(
+            new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(Array.from({length: 15000}, () => (Math.random()-0.5)*500), 3)),
+            new THREE.PointsMaterial({ color: 0x444444, size: 0.4 })
+        );
         scene.add(stars);
 
-        // --- MONGOLIA HI-TECH TOPOGRAPHY ---
-        // Creating a custom topographical grid
+        // 2. THE TOPOGRAPHICAL GRID (MAX VERSION)
         const mapGroup = new THREE.Group();
-        const gridGeo = new THREE.PlaneGeometry(12, 7, 60, 40);
-        
-        // Displacement effect for "mountains"
-        const verts = gridGeo.attributes.position.array;
-        for (let i = 0; i < verts.length; i += 3) {
-            const x = verts[i];
-            const y = verts[i+1];
-            // Simple noise-like displacement to simulate Altai/Gobi terrain
-            verts[i+2] = Math.sin(x*0.5) * Math.cos(y*0.5) * 0.5 + (Math.random() * 0.05);
+        const terrainGeo = new THREE.PlaneGeometry(16, 10, 80, 50);
+        const posAttr = terrainGeo.attributes.position;
+        for (let i = 0; i < posAttr.count; i++) {
+            const x = posAttr.getX(i);
+            const y = posAttr.getY(i);
+            // Create "Altai" and "Gobi" terrain using procedural noise
+            let z = Math.sin(x * 0.4) * Math.cos(y * 0.4) * 0.6; 
+            if (x < -2) z += Math.random() * 0.3; // Mountain ranges
+            posAttr.setZ(i, z);
         }
-        
-        const gridMat = new THREE.MeshBasicMaterial({ 
-            color: 0x003344, 
-            wireframe: true, 
-            transparent: true, 
-            opacity: 0.4 
-        });
-        const terrain = new THREE.Mesh(gridGeo, gridMat);
+        terrainGeo.computeVertexNormals();
+
+        const terrain = new THREE.Mesh(terrainGeo, new THREE.MeshPhongMaterial({ 
+            color: 0x00151a, wireframe: true, transparent: true, opacity: 0.3, side: THREE.DoubleSide 
+        }));
         mapGroup.add(terrain);
-
-        // Add glow perimeter
-        const borderGeo = new THREE.PlaneGeometry(12.2, 7.2);
-        const borderMat = new THREE.MeshBasicMaterial({ color: 0x00f2ff, wireframe: true, transparent: true, opacity: 0.1 });
-        const border = new THREE.Mesh(borderGeo, borderMat);
-        border.position.z = -0.1;
-        mapGroup.add(border);
-
+        mapGroup.rotation.x = -Math.PI / 3;
         scene.add(mapGroup);
-        mapGroup.rotation.x = -0.8;
 
-        // --- INTERACTIVE CORES ---
+        // 3. VOLUMETRIC RESOURCE CORES
         const siteMeshes = [];
-        mineralSites.forEach(s => {
-            // Core Sphere
+        deposits.forEach(d => {
+            const container = new THREE.Group();
+            
+            // The "Core" (Surface Marker)
             const core = new THREE.Mesh(
-                new THREE.SphereGeometry(0.12, 16, 16),
-                new THREE.MeshBasicMaterial({ color: s.color })
+                new THREE.IcosahedronGeometry(0.12, 1),
+                new THREE.MeshStandardMaterial({ color: d.color, emissive: d.color, emissiveIntensity: 2 })
             );
-            core.position.set(s.pos[0], s.pos[1], s.pos[2] + 0.2);
-            core.userData = s;
+            container.add(core);
+
+            // The "Resource Body" (Underground Model)
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.02, 0.2, 2.5, 6),
+                new THREE.MeshBasicMaterial({ color: d.color, wireframe: true, transparent: true, opacity: 0.2 })
+            );
+            body.position.z = -1.25;
+            body.rotation.x = Math.PI / 2 + d.tilt;
+            container.add(body);
+
+            // Mapping Lat/Long to Grid Coords
+            const x = (d.pos[0] - 103) * 0.6;
+            const y = (d.pos[1] - 46) * 0.8;
+            container.position.set(x, y, 0.2);
+            container.userData = d;
             
-            // Vertical marker line
-            const lineGeo = new THREE.BufferGeometry().setFromPoints([
-                new THREE.Vector3(s.pos[0], s.pos[1], 0),
-                new THREE.Vector3(s.pos[0], s.pos[1], 1.5)
-            ]);
-            const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: s.color, transparent: true, opacity: 0.5 }));
-            
-            mapGroup.add(core);
-            mapGroup.add(line);
-            siteMeshes.push(core);
+            mapGroup.add(container);
+            siteMeshes.push(core); // Track only core for raycasting
         });
 
-        camera.position.z = 8;
-        camera.position.y = -2;
+        // LIGHTING
+        const light = new THREE.PointLight(0x00f2ff, 2, 50);
+        light.position.set(0, 0, 10);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x111111));
 
-        // --- INTERACTION LOGIC ---
+        camera.position.set(0, -8, 8);
+        camera.lookAt(0, 0, 0);
+
+        // --- INTERACTION ---
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
 
@@ -197,42 +152,38 @@
             
             const hits = raycaster.intersectObjects(siteMeshes);
             if(hits.length > 0) {
-                const data = hits[0].object.userData;
-                document.getElementById('p-name').innerText = data.name;
-                document.getElementById('p-type').innerText = data.type;
-                document.getElementById('p-res').innerText = data.res;
-                document.getElementById('p-op').innerText = data.op;
-                document.getElementById('p-gov').innerText = data.gov;
+                const data = hits[0].object.parent.userData;
+                document.getElementById('d-name').innerText = data.name;
+                document.getElementById('d-type').innerText = data.type;
+                document.getElementById('d-res').innerText = data.res;
+                document.getElementById('d-gov').innerText = data.gov;
                 
-                // Color coding for scores
-                const scoreColor = data.gov.includes("Satisfactory") ? "#00ff99" : "#ffcc00";
-                document.getElementById('p-gov').style.color = scoreColor;
+                const score = parseInt(data.gov);
+                const color = score > 60 ? "#00ffaa" : "#ff3333";
+                document.getElementById('d-gov').style.background = color + "44";
+                document.getElementById('d-gov').style.color = color;
+                document.getElementById('d-gov').style.border = `1px solid ${color}`;
                 
-                document.getElementById('detail-panel').classList.add('active');
+                document.getElementById('intel-panel').classList.add('active');
             }
         });
 
-        function closePanel() { document.getElementById('detail-panel').classList.remove('active'); }
+        function hidePanel() { document.getElementById('intel-panel').classList.remove('active'); }
 
-        // --- ANIMATION ---
+        // --- ANIMATION LOOP ---
         function animate() {
             requestAnimationFrame(animate);
+            mapGroup.rotation.z += 0.0008;
+            stars.rotation.y += 0.0001;
             
-            // Suble rotation
-            mapGroup.rotation.z += 0.0005;
-            stars.rotation.y += 0.0002;
-            
-            // Pulse cores
-            const time = Date.now() * 0.002;
-            siteMeshes.forEach(m => {
-                m.scale.setScalar(1 + Math.sin(time) * 0.1);
-            });
+            // Pulse the cores
+            const time = Date.now() * 0.005;
+            siteMeshes.forEach(m => m.scale.setScalar(1 + Math.sin(time) * 0.15));
 
             renderer.render(scene, camera);
         }
         animate();
 
-        // Responsive Resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
