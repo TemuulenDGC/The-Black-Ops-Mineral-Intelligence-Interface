@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MON-INTEL | Strategic Mineral Grid</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; background: #000; color: #00f2ff; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
+        canvas { display: block; }
+
+        /* SCI-FI HUD ELEMENTS */
+        #ui-header { position: absolute; top: 20px; left: 20px; border-left: 4px solid #00f2ff; padding-left: 15px; z-index: 10; }
+        #ui-header h1 { margin: 0; font-size: 1.5rem; letter-spacing: 5px; text-transform: uppercase; }
+        #ui-header p { margin: 5px 0; font-size: 0.7rem; color: rgba(0, 242, 255, 0.5); }
+
+        #data-panel {
+            position: absolute; top: 100px; right: -350px; width: 300px; background: rgba(0, 20, 30, 0.85);
+            border: 1px solid #00f2ff; padding: 20px; transition: 0.5s; backdrop-filter: blur(10px); z-index: 10;
+        }
+        #data-panel.active { right: 20px; }
+        #data-panel h2 { border-bottom: 1px solid #00f2ff; padding-bottom: 10px; font-size: 1.2rem; }
+        .stat-row { display: flex; justify-content: space-between; margin: 10px 0; font-size: 0.8rem; }
+        .stat-label { color: rgba(0, 242, 255, 0.6); }
+
+        #status-bar { position: absolute; bottom: 10px; left: 20px; font-size: 0.6rem; letter-spacing: 2px; }
+        .btn-close { cursor: pointer; color: #ff3333; float: right; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-header">
+        <h1>Mon-Intel <span style="color: #fff;">v1.0</span></h1>
+        <p>STRATEGIC RESOURCE GRID // SECTOR: GOBI_SOUTH</p>
+    </div>
+
+    <div id="data-panel">
+        <span class="btn-close" onclick="closePanel()">[X] CLOSE</span>
+        <h2 id="p-name">Deposit Name</h2>
+        <div class="stat-row"><span class="stat-label">TYPE:</span> <span id="p-type">-</span></div>
+        <div class="stat-row"><span class="stat-label">RESERVES:</span> <span id="p-res">-</span></div>
+        <div class="stat-row"><span class="stat-label">OPERATOR:</span> <span id="p-op">-</span></div>
+        <div class="stat-row"><span class="stat-label">STATUS:</span> <span id="p-status" style="color:#0f0">-</span></div>
+    </div>
+
+    <div id="status-bar">LINKED_TO_SATELLITE_UPLINK... SCAN_COMPLETE... 100%</div>
+
+    <script>
+        // --- DATA ENGINE ---
+        const sites = [
+            { name: "Oyu Tolgoi", type: "Copper-Gold", res: "42Mt Cu / 1850t Au", op: "Rio Tinto", status: "Active", pos: [-2, 0.5, 0], color: 0x00f2ff },
+            { name: "Tavan Tolgoi", type: "Coking Coal", res: "6.4B Tonnes", op: "ETT SOE", status: "Exporting", pos: [-1.5, 0.2, 0], color: 0x555555 },
+            { name: "Erdenet", type: "Copper-Moly", res: "1.7Mt Cu", op: "EMC", status: "Active", pos: [-0.5, 2.5, 0], color: 0x00ffaa }
+        ];
+
+        // --- 3D ENGINE ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Starfield
+        const starGeo = new THREE.BufferGeometry();
+        const starCoords = [];
+        for(let i=0; i<6000; i++) {
+            starCoords.push(Math.random()*600-300, Math.random()*600-300, Math.random()*600-300);
+        }
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starCoords, 3));
+        const starMaterial = new THREE.PointsMaterial({ color: 0x888888, size: 0.7 });
+        const stars = new THREE.Points(starGeo, starMaterial);
+        scene.add(stars);
+
+        // Placeholder for Mongolia (Abstract Wireframe Landmass)
+        const mapGeo = new THREE.PlaneGeometry(10, 6, 20, 20);
+        const mapMat = new THREE.MeshBasicMaterial({ color: 0x002233, wireframe: true, transparent: true, opacity: 0.3 });
+        const mongoliaMap = new THREE.Mesh(mapGeo, mapMat);
+        mongoliaMap.rotation.x = -0.5;
+        scene.add(mongoliaMap);
+
+        // Add Interactive Sites
+        const siteMeshes = [];
+        sites.forEach(data => {
+            const geo = new THREE.SphereGeometry(0.12, 16, 16);
+            const mat = new THREE.MeshBasicMaterial({ color: data.color });
+            const sphere = new THREE.Mesh(geo, mat);
+            sphere.position.set(data.pos[0], data.pos[1], 0.2);
+            sphere.userData = data;
+            scene.add(sphere);
+            siteMeshes.push(sphere);
+
+            // Glow ring
+            const rGeo = new THREE.RingGeometry(0.15, 0.18, 32);
+            const rMat = new THREE.MeshBasicMaterial({ color: data.color, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+            const ring = new THREE.Mesh(rGeo, rMat);
+            ring.position.copy(sphere.position);
+            scene.add(ring);
+        });
+
+        camera.position.z = 6;
+
+        // --- INTERACTION ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        window.addEventListener('click', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(siteMeshes);
+            
+            if (intersects.length > 0) {
+                const d = intersects[0].object.userData;
+                document.getElementById('p-name').innerText = d.name;
+                document.getElementById('p-type').innerText = d.type;
+                document.getElementById('p-res').innerText = d.res;
+                document.getElementById('p-op').innerText = d.op;
+                document.getElementById('p-status').innerText = d.status;
+                document.getElementById('data-panel').classList.add('active');
+            }
+        });
+
+        function closePanel() { document.getElementById('data-panel').classList.remove('active'); }
+
+        // --- ANIMATION LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+            stars.rotation.y += 0.0005;
+            mongoliaMap.rotation.z += 0.001;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
